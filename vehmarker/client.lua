@@ -8,7 +8,7 @@ local markerHitHandler = nil
 
 function createVehMarkerGUI()
     if isElement(window) then return end
-    window = guiCreateWindow(0.35, 0.25, 0.3, 0.45, "Vehicle Marker", true)
+    window = guiCreateWindow(0.65, 0.3, 0.25, 0.4, "Vehicle Marker", true)
     guiWindowSetSizable(window, false)
 
     grid = guiCreateGridList(0.03, 0.05, 0.94, 0.78, true, window)
@@ -44,11 +44,11 @@ function createMarkerAtPlayer()
     -- place marker slightly in front of player
     local rx, ry, rz = getElementRotation(localPlayer)
     local rad = math.rad(rz)
-    local sx = math.cos(rad) * 1.5
-    local sy = math.sin(rad) * 1.5
+    local sx = math.cos(rad)
+    local sy = math.sin(rad)
     local mx, my, mz = px + sx, py + sy, pz - 1
 
-    currentMarker = createMarker(mx, my, mz, "cylinder", 1.5, 0, 150, 255, 150)
+    currentMarker = createMarker(mx, my, mz, "cylinder", 1.5, 255, 255, 255, 128)
 
     markerHitHandler = function(hitElement, matchingDimension)
         if hitElement == localPlayer then
