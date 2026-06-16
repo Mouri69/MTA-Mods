@@ -6,4 +6,4 @@ VEHICLE_MODELS = {
 }
 
 -- distance offset to spawn vehicle slightly in front of player
-SPAWN_OFFSET = 0
+SPAWN_OFFSET = 2
