@@ -1,0 +1,8 @@
+<meta>
+    <info author="generated" type="script"/>
+    <version>1.0</version>
+    <author>Mouri</author>
+    <script src="server.lua" type="server"/>
+    <script src="client.lua" type="client"/>
+    <file>config.lua</file>
+</meta>
