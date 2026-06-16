@@ -140,7 +140,7 @@ addEventHandler("veh_fuel:requestFuelSync", root, function(vehicle)
 end)
 
 local function createFuelMarkerAt(x, y, z)
-    local marker = createMarker(x, y, z - 1, "cylinder", 8, 0, 128, 255, 128)
+    local marker = createMarker(x, y, z - 1, "cylinder", 3, 0, 128, 255, 128)
     setElementData(marker, "isFuelMarker", true, false)
     fuelMarkers[#fuelMarkers + 1] = marker
     return marker

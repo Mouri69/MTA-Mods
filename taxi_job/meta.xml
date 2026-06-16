@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource>
+  <name>taxi_job</name>
+  <type>script</type>
+  <description>Taxi driver job system with levels and progression.</description>
+  <author>Mouri</author>
+  <version>1.0</version>
+  <script src="main.lua" type="server" />
+  <script src="client.lua" type="client" />
+</resource>
