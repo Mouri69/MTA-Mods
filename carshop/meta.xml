@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resource>
-  <name>veh_fuel</name>
+  <name>carshop</name>
   <type>script</type>
-  <description>Vehicle fuel system with refill markers and HUD.</description>
+  <description>A shop to buy cars from it.</description>
   <author>Mouri</author>
   <version>1.0</version>
   <script src="main.lua" type="server" />
