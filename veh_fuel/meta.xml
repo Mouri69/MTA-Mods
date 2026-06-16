@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource>
+  <name>veh_fuel</name>
+  <type>script</type>
+  <description>Vehicle fuel system with refill markers and HUD.</description>
+  <author>GitHub Copilot</author>
+  <version>1.0</version>
+  <script src="main.lua" type="server" />
+  <script src="client.lua" type="client" />
+</resource>

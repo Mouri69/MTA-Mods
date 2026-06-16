@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource>
+  <name>repair_vehicle</name>
+  <type>script</type>
+  <description>Creates markers that repair vehicles when passed through</description>
+  <author>Mouri</author>
+  <version>1.0</version>
+  <script src="main.lua" type="server" />
+  <script src="client.lua" type="client" />
+</resource>

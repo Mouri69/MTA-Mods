@@ -1,0 +1,5 @@
+<meta>
+    <script src="server.lua" type="server"/>
+    <script src="client.lua" type="client"/>
+    <info author="Mouri" name="Drugs Mod" version="1.0"/>
+</meta>
