@@ -25,8 +25,8 @@ function createVehMarkerGUI()
         end
     end
 
-    btnSpawn = guiCreateButton(0.06, 0.86, 0.4, 0.1, "Spawn", true, window)
-    btnCancel = guiCreateButton(0.54, 0.86, 0.4, 0.1, "Cancel", true, window)
+    btnSpawn = guiCreateButton(0.01, 0.86, 0.5, 0.1, "Spawn", true, window)
+    btnCancel = guiCreateButton(0.54, 0.86, 0.5, 0.1, "Cancel", true, window)
 
     addEventHandler("onClientGUIClick", window, onGuiClick)
     isOpen = true
