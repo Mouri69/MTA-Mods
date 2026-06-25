@@ -215,7 +215,7 @@ function processTurfProgress()
         end
     end
 end
-setTimer(processTurfProgress, 10, 0)
+setTimer(processTurfProgress, 10000, 0)
 
 -- Prompt 4: Passive Revenue Loop
 function processPayouts()
