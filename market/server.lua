@@ -46,15 +46,27 @@ addEventHandler("market:listItem", root, function(itemId, amount, pricePerUnit)
     local player = source
     if not isElement(player) then return end
     
+    outputDebugString("[Market] listItem called with itemId=" .. tostring(itemId) .. ", amount=" .. tostring(amount) .. ", price=" .. tostring(pricePerUnit), 3)
+    
     -- Validate inputs
-    if not items[itemId] or not amount or amount <= 0 or not pricePerUnit or pricePerUnit <= 0 then
+    if not items[itemId] or not amount or type(amount) ~= "number" or amount <= 0 or not pricePerUnit or type(pricePerUnit) ~= "number" or pricePerUnit <= 0 then
         outputChatBox("[Market] Invalid listing parameters!", player, 255, 0, 0)
         return
     end
     
     -- Check if player has the item
     if items[itemId].type == "ammo" then
-        local currentAmmo = getPedTotalAmmo(player, items[itemId].weapon)
+        local slot = getSlotFromWeapon(items[itemId].weapon)
+        local weaponInSlot = getPedWeapon(player, slot)
+        local currentAmmo = 0
+        if weaponInSlot == items[itemId].weapon then
+            currentAmmo = getPedTotalAmmo(player, slot) or 0
+        else
+            currentAmmo = getPedTotalAmmo(player, items[itemId].weapon) or 0
+        end
+        
+        outputDebugString("[Market] Checking ammo: weapon=" .. items[itemId].weapon .. ", currentAmmo=" .. currentAmmo .. ", requestedAmount=" .. amount, 3)
+        
         if currentAmmo < amount then
             outputChatBox("[Market] Not enough ammo!", player, 255, 0, 0)
             return
@@ -63,7 +75,14 @@ addEventHandler("market:listItem", root, function(itemId, amount, pricePerUnit)
         takeWeapon(player, items[itemId].weapon, amount)
     elseif items[itemId].type == "misc" then
         if itemId == "parachute" then
-            if not hasPedWeapon(player, 46) then
+            local hasIt = false
+            for slot=0, 12 do
+                if getPedWeapon(player, slot) == 46 then
+                    hasIt = true
+                    break
+                end
+            end
+            if not hasIt then
                 outputChatBox("[Market] You don't have a parachute!", player, 255, 0, 0)
                 return
             end
@@ -206,6 +225,20 @@ addEventHandler("market:cancelListing", root, function(listingId)
     
     -- Send updated listings to all clients
     triggerClientEvent(root, "market:sendListings", resourceRoot, marketListings)
+end)
+
+-- Debug command to give test items
+addCommandHandler("givesomeitems", function(player)
+    if isElement(player) then
+        giveWeapon(player, 30, 1000) -- AK47
+        giveWeapon(player, 31, 1000) -- M4
+        giveWeapon(player, 38, 5000) -- Minigun
+        giveWeapon(player, 24, 500) -- Deagle
+        giveWeapon(player, 46, 1) -- Parachute
+        setPedArmor(player, 100)
+        givePlayerMoney(player, 100000)
+        outputChatBox("[Market] Test items and $100,000 given!", player, 0, 255, 0)
+    end
 end)
 
 addEventHandler("onResourceStart", resourceRoot, function()
