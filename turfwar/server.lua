@@ -47,7 +47,7 @@ function loadTurfs()
         turfs = fromJSON(json) or {}
         -- Make sure all turfs have bounding boxes
         for i, turf in ipairs(turfs) do
-            if turf.corners and #turf.corners >=3 then
+            if turf.corners and #turf.corners >= 3 then
                 if not turf.x or not turf.y or not turf.width or not turf.height then
                     local bx, by, bw, bh = getPolygonBounds(turf.corners)
                     turf.x = bx
@@ -133,12 +133,26 @@ end
 
 -- Helper: Get or create team
 function getOrCreateTeam(gangName)
+    outputDebugString("[TurfWar] getOrCreateTeam called for " .. tostring(gangName), 3)
+    
     for _, team in ipairs(getElementsByType("team")) do
         if getTeamName(team) == gangName then
+            outputDebugString("[TurfWar] Found existing team " .. gangName, 3)
             return team
         end
     end
+    
+    if not gangColors[gangName] then
+        outputDebugString("[TurfWar] No color found for gang " .. gangName .. "! Using white.", 2)
+        gangColors[gangName] = {255, 255, 255}
+    end
+    
     local team = createTeam(gangName, gangColors[gangName][1], gangColors[gangName][2], gangColors[gangName][3])
+    if isElement(team) then
+        outputDebugString("[TurfWar] Created new team " .. gangName .. "!", 3)
+    else
+        outputDebugString("[TurfWar] Failed to create team " .. gangName .. "!", 1)
+    end
     return team
 end
 
@@ -147,24 +161,43 @@ function hexToRGB(hex)
     hex = hex:gsub("#", "")
     if #hex ~= 6 then return false end
     
-    local r = tonumber(hex:sub(1,2), 16)
-    local g = tonumber(hex:sub(3,4), 16)
-    local b = tonumber(hex:sub(5,6), 16)
+    local r = tonumber(hex:sub(1, 2), 16)
+    local g = tonumber(hex:sub(3, 4), 16)
+    local b = tonumber(hex:sub(5, 6), 16)
     
     return r, g, b
 end
 
 -- Prompt 1: Join Gang
-function joinGang(gangName)
-    local player = source
-    if not isElement(player) then return end
+function joinGang(gangName, playerOverride)
+    local player = playerOverride or source
+    if not isElement(player) then 
+        outputDebugString("[TurfWar] joinGang called with invalid player!", 1)
+        return 
+    end
+    
+    outputDebugString("[TurfWar] joinGang called for " .. getPlayerName(player) .. " to join " .. tostring(gangName), 3)
     
     local team = getOrCreateTeam(gangName)
-    setPlayerTeam(player, team)
-    outputChatBox("You have joined " .. gangName .. "!", player, 0, 255, 0)
+    if not isElement(team) then
+        outputDebugString("[TurfWar] Failed to get/create team " .. tostring(gangName), 1)
+        return
+    end
+    
+    local success = setPlayerTeam(player, team)
+    if success then
+        setElementData(player, "gangName", gangName) -- Add element data for quick check
+        outputChatBox("You have joined " .. gangName .. "!", player, 0, 255, 0)
+        outputDebugString("[TurfWar] Successfully set player " .. getPlayerName(player) .. " to team " .. getTeamName(team), 3)
+    else
+        outputChatBox("Failed to join " .. gangName .. "!", player, 255, 0, 0)
+        outputDebugString("[TurfWar] Failed to set player " .. getPlayerName(player) .. " to team " .. getTeamName(team), 1)
+    end
 end
 addEvent("turfwar:joinGang", true)
-addEventHandler("turfwar:joinGang", root, joinGang)
+addEventHandler("turfwar:joinGang", root, function(gangName)
+    joinGang(gangName, source)
+end)
 
 -- Prompt 2: /groupturfcolor command
 function setGangColor(player, cmd, hex)
@@ -199,6 +232,17 @@ function setGangColor(player, cmd, hex)
 end
 addCommandHandler("groupturfcolor", setGangColor)
 
+-- Test command: /testjoin <Mouri/Evil>
+addCommandHandler("testjoin", function(player, cmd, gangName)
+    if not isElement(player) then return end
+    if not gangName then
+        outputChatBox("Usage: /testjoin <Mouri/Evil>", player, 255, 0, 0)
+        return
+    end
+    outputDebugString("[TurfWar] /testjoin called by " .. getPlayerName(player) .. " for " .. gangName, 3)
+    joinGang(gangName) -- Directly call the function!
+end)
+
 -- Command: /saveturf <name> - save current position as a new turf
 addCommandHandler("saveturf", function(player, cmd, name)
     if not isElement(player) then return end
@@ -212,8 +256,8 @@ addCommandHandler("saveturf", function(player, cmd, name)
     local turfWidth = 150
     local turfHeight = 150
     -- Center turf on player position
-    x = x - turfWidth/2
-    y = y - turfHeight/2
+    x = x - turfWidth / 2
+    y = y - turfHeight / 2
     
     local newTurf = {
         name = name,
@@ -280,7 +324,7 @@ function initTurfs()
     loadTurfs()
     for i, turf in ipairs(turfs) do
         -- Make sure we have bounding box
-        if turf.corners and #turf.corners >=3 then
+        if turf.corners and #turf.corners >= 3 then
             if not turf.x or not turf.y or not turf.width or not turf.height then
                 local bx, by, bw, bh = getPolygonBounds(turf.corners)
                 turf.x = bx
@@ -296,9 +340,9 @@ function initTurfs()
             if turf.x and turf.y and turf.width and turf.height then
                 local r, g, b = 127, 127, 127
                 if turf.owner == "Mouri" then
-                    r,g,b = unpack(gangColors["Mouri"])
+                    r, g, b = unpack(gangColors["Mouri"])
                 elseif turf.owner == "Evil" then
-                    r,g,b = unpack(gangColors["Evil"])
+                    r, g, b = unpack(gangColors["Evil"])
                 end
                 turfRadarAreas[i] = createRadarArea(turf.x, turf.y, turf.width, turf.height, r, g, b, 175)
                 outputDebugString("[TurfWar] Created radar area for " .. tostring(turf.name), 3)
@@ -374,6 +418,8 @@ function processTurfProgress()
         local teamCounts = {}
         local playersInside = 0
         
+        outputDebugString("[TurfWar] Checking turf " .. tostring(turf.name), 3)
+        
         for _, player in ipairs(getElementsByType("player")) do
             if isElement(player) then
                 local px, py, pz = getElementPosition(player)
@@ -384,16 +430,27 @@ function processTurfProgress()
                     if inTurf then
                         outputDebugString("[TurfWar] " .. getPlayerName(player) .. " inside " .. tostring(turf.name) .. " via polygon", 3)
                     end
-                elseif turfColShapes[i] and isElement(turfColShapes[i]) then
-                    inTurf = isElementWithinColShape(player, turfColShapes[i])
+                elseif turfColShapes[i] and isElement(turfColShapes[i]) and isElementWithinColShape(player, turfColShapes[i]) then
+                    inTurf = true
+                    outputDebugString("[TurfWar] " .. getPlayerName(player) .. " inside " .. tostring(turf.name) .. " via col shape", 3)
                 end
                 
                 if inTurf then
                     playersInside = playersInside + 1
                     local team = getPlayerTeam(player)
+                    local teamName = nil
                     if team then
-                        local teamName = getTeamName(team)
+                        teamName = getTeamName(team)
+                    else
+                        teamName = getElementData(player, "gangName") -- Fallback to element data
+                    end
+                    
+                    if teamName then
                         teamCounts[teamName] = (teamCounts[teamName] or 0) + 1
+                        outputDebugString("[TurfWar] Player in team " .. teamName, 3)
+                    else
+                        outputDebugString("[TurfWar] Player not in a team!", 3)
+                        outputChatBox("[TurfWar] You must join a team with /group to capture turfs!", player, 255, 0, 0)
                     end
                 end
             end
@@ -415,6 +472,8 @@ function processTurfProgress()
                 dominantTeam = teamName
             end
         end
+        
+        outputDebugString("[TurfWar] Dominant team: " .. tostring(dominantTeam) .. " with " .. maxCount, 3)
         
         -- Update progress
         if dominantTeam then
@@ -459,7 +518,7 @@ function processTurfProgress()
         end
     end
 end
-setTimer(processTurfProgress, 10, 0)
+setTimer(processTurfProgress, 10000, 0)
 
 -- Prompt 4: Passive Revenue Loop
 function processPayouts()

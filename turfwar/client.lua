@@ -72,23 +72,34 @@ local mouriButton = nil
 local evilButton = nil
 local closeButton = nil
 
--- Group menu function
+-- Simple group menu (original style)
 function openGroupMenu()
     if groupWindow and isElement(groupWindow) then return end
     
-    groupWindow = guiCreateWindow(0.4, 0.4, 0.2, 0.2, "Join a Gang", true)
-    mouriButton = guiCreateButton(0.1, 0.2, 0.8, 0.25, "Join Mouri", true, groupWindow)
-    evilButton = guiCreateButton(0.1, 0.5, 0.8, 0.25, "Join Evil", true, groupWindow)
-    closeButton = guiCreateButton(0.1, 0.8, 0.8, 0.15, "Close", true, groupWindow)
+    groupWindow = guiCreateWindow(0.4, 0.35, 0.2, 0.3, "Join a Gang", true)
+    mouriButton = guiCreateButton(0.1, 0.2, 0.8, 0.2, "Join Mouri", true, groupWindow)
+    evilButton = guiCreateButton(0.1, 0.45, 0.8, 0.2, "Join Evil", true, groupWindow)
+    closeButton = guiCreateButton(0.1, 0.75, 0.8, 0.2, "Close", true, groupWindow)
     
-    addEventHandler("onClientGUIClick", mouriButton, function()
-        triggerServerEvent("turfwar:joinGang", resourceRoot, "Mouri")
-        closeGroupMenu()
+    -- Show cursor
+    showCursor(true)
+    
+    addEventHandler("onClientGUIClick", mouriButton, function(button, state)
+        if button == "left" and state == "up" then
+            outputChatBox("[TurfWar] Attempting to join Mouri...", 0, 255, 0)
+            outputDebugString("[TurfWar] (Client) Mouri button clicked! Triggering turfwar:joinGang with 'Mouri'", 3)
+            triggerServerEvent("turfwar:joinGang", resourceRoot, "Mouri")
+            closeGroupMenu()
+        end
     end, false)
     
-    addEventHandler("onClientGUIClick", evilButton, function()
-        triggerServerEvent("turfwar:joinGang", resourceRoot, "Evil")
-        closeGroupMenu()
+    addEventHandler("onClientGUIClick", evilButton, function(button, state)
+        if button == "left" and state == "up" then
+            outputChatBox("[TurfWar] Attempting to join Evil...", 0, 255, 0)
+            outputDebugString("[TurfWar] (Client) Evil button clicked! Triggering turfwar:joinGang with 'Evil'", 3)
+            triggerServerEvent("turfwar:joinGang", resourceRoot, "Evil")
+            closeGroupMenu()
+        end
     end, false)
     
     addEventHandler("onClientGUIClick", closeButton, closeGroupMenu, false)
@@ -99,6 +110,7 @@ function closeGroupMenu()
         destroyElement(groupWindow)
         groupWindow = nil
     end
+    showCursor(false)
 end
 
 -- /group command to open menu
@@ -108,14 +120,15 @@ addCommandHandler("group", openGroupMenu)
 addEventHandler("onClientRender", root, function()
     if currentTurf then
         local screenW, screenH = guiGetScreenSize()
-        local y = screenH * 0.1
+        local x = screenW * 0.9
+        local y = screenH * 0.85
         
         -- Draw turf name
-        dxDrawText(currentTurf.name, 0, y, screenW, y, tocolor(255, 255, 255, 255), 1.5, "default-bold", "center", "top")
+        dxDrawText(currentTurf.name, x - 100, y, x + 100, y, tocolor(255, 255, 255, 255), 1.2, "default-bold", "center", "top")
         
         -- Draw owner
         local ownerText = "Unowned"
-        local ownerColor = tocolor(127, 127, 127, 255)
+        local ownerColor = tocolor(200, 200, 200, 255) -- Lighter gray for readability
         if currentTurf.owner == "Mouri" then
             ownerText = "Owned by Mouri"
             ownerColor = tocolor(255, 0, 0, 255)
@@ -125,13 +138,13 @@ addEventHandler("onClientRender", root, function()
         end
         
         y = y + 25
-        dxDrawText(ownerText, 0, y, screenW, y, ownerColor, 1, "default", "center", "top")
+        dxDrawText(ownerText, x - 100, y, x + 100, y, ownerColor, 1, "default", "center", "top")
         
         -- Draw progress bar
         y = y + 25
         local barWidth = 200
         local barHeight = 20
-        local barX = (screenW - barWidth) / 2
+        local barX = x - barWidth / 2
         local barY = y
         
         -- Background
@@ -141,7 +154,7 @@ addEventHandler("onClientRender", root, function()
         local progressWidth = (currentTurf.progress / 100) * barWidth
         dxDrawRectangle(barX, barY, progressWidth, barHeight, ownerColor)
         
-        -- Progress text
+        -- Progress text (in white for contrast
         dxDrawText(currentTurf.progress .. "%", barX, barY, barX + barWidth, barY + barHeight, tocolor(255, 255, 255, 255), 1, "default", "center", "center")
     end
 end)
@@ -154,9 +167,8 @@ function drawTurfs()
     local isRadarVisible = isPlayerHudComponentVisible("radar")
     local isBigMapVisible = false
     
-    -- Check if F11 map is visible (check if map is active)
+    -- Check if F11 map is visible (check if camera is really high
     local camX, camY, camZ, lookX, lookY, lookZ = getCameraMatrix()
-    -- Simple check: if camera is really high, it's likely the big map
     if camZ > 1000 then
         isBigMapVisible = true
     end
