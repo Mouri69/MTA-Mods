@@ -5,14 +5,115 @@ local gangColors = {
     ["Evil"] = {0, 0, 255}
 }
 
-local turfs = {
-    {name = "Downtown LS", x = 500, y = -1000, width = 200, height = 200, owner = nil, progress = 0},
-    {name = "Grove Street", x = 1300, y = -800, width = 200, height = 200, owner = nil, progress = 0},
-    {name = "Santa Maria Beach", x = 1900, y = -1300, width = 200, height = 200, owner = nil, progress = 0},
-    {name = "Los Santos Airport", x = 100, y = -1500, width = 200, height = 200, owner = nil, progress = 0},
-    {name = "Verdant Bluffs", x = 800, y = -500, width = 200, height = 200, owner = nil, progress = 0},
-    {name = "East Beach", x = 1600, y = -1100, width = 200, height = 200, owner = nil, progress = 0}
-}
+local turfs = {}
+local dataFile = "turfs.json"
+
+-- Check if a point is inside a polygon (ray casting algorithm)
+function isPointInPolygon(x, y, polygon)
+    local inside = false
+    local n = #polygon
+    for i = 1, n do
+        local j = (i % n) + 1
+        local xi, yi = polygon[i].x, polygon[i].y
+        local xj, yj = polygon[j].x, polygon[j].y
+        
+        if ((yi > y) ~= (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi) then
+            inside = not inside
+        end
+    end
+    return inside
+end
+
+-- Calculate bounding box of a polygon
+function getPolygonBounds(polygon)
+    local minX, maxX, minY, maxY = math.huge, -math.huge, math.huge, -math.huge
+    for _, corner in ipairs(polygon) do
+        if corner.x < minX then minX = corner.x end
+        if corner.x > maxX then maxX = corner.x end
+        if corner.y < minY then minY = corner.y end
+        if corner.y > maxY then maxY = corner.y end
+    end
+    return minX, minY, maxX - minX, maxY - minY
+end
+
+-- Load turfs from file
+function loadTurfs()
+    local file = fileOpen(dataFile)
+    if file then
+        local json = fileRead(file, fileGetSize(file))
+        fileClose(file)
+        turfs = fromJSON(json) or {}
+        -- Make sure all turfs have bounding boxes
+        for i, turf in ipairs(turfs) do
+            if turf.corners and #turf.corners >=3 then
+                if not turf.x or not turf.y or not turf.width or not turf.height then
+                    local bx, by, bw, bh = getPolygonBounds(turf.corners)
+                    turf.x = bx
+                    turf.y = by
+                    turf.width = bw
+                    turf.height = bh
+                end
+            end
+        end
+        saveTurfs() -- resave to fix any missing bounding boxes
+        outputDebugString("[TurfWar] Loaded " .. #turfs .. " turfs from file!", 3)
+    else
+        outputDebugString("[TurfWar] No turfs file found, creating default turfs!", 3)
+        -- Generate 50+ turfs in Las Venturas (grid)
+        local turfWidth = 150
+        local turfHeight = 150
+        local startX = 1600
+        local startY = 1600
+        local turfNames = {
+            "LV Airport", "The Strip", "Caligulas Palace", "Four Dragons",
+            "Emerald Isle", "Pirates Rest", "Come-A-Lot", "Madd Dogg's",
+            "Old Venturas", "Rodeo LV", "Glen Park LV", "Temple LV",
+            "El Corona LV", "Verdant Bluffs LV", "Jefferson LV", "Idlewood LV",
+            "Willowfield LV", "Los Flores LV", "East Beach LV", "Santa Maria LV",
+            "Market LV", "Mulholland LV", "Marina LV", "Temple Drive LV",
+            "Rodeo Drive LV", "Vinewood LV", "Sunset Strip LV", "Downtown LV",
+            "Las Venturas Stadium", "LVPD Station", "Hospital LV", "Fire Station LV",
+            "LV Docks", "Warehouse District LV", "Industrial LV", "Commercial LV",
+            "Residential LV", "Park LV", "Golf Course LV", "Race Track LV",
+            "Airport Hangars LV", "Military Base LV", "Power Plant LV", "Water Treatment LV",
+            "Junkyard LV", "Quarry LV", "Farm LV", "Ranch LV", "Vineyard LV"
+        }
+        
+        local nameIndex = 1
+        for row = 0, 7 do
+            for col = 0, 6 do
+                local x = startX + col * turfWidth
+                local y = startY + row * turfHeight
+                local name = turfNames[nameIndex] or ("Turf LV " .. nameIndex)
+                table.insert(turfs, {
+                    name = name,
+                    x = x,
+                    y = y,
+                    width = turfWidth,
+                    height = turfHeight,
+                    owner = nil,
+                    progress = 0
+                })
+                nameIndex = nameIndex + 1
+                if nameIndex > 50 then break end
+            end
+            if nameIndex > 50 then break end
+        end
+        
+        -- Save initial turfs
+        saveTurfs()
+    end
+end
+
+-- Save turfs to file
+function saveTurfs()
+    local file = fileCreate(dataFile)
+    if file then
+        fileWrite(file, toJSON(turfs))
+        fileClose(file)
+        outputDebugString("[TurfWar] Saved " .. #turfs .. " turfs to file!", 3)
+    end
+end
 
 -- Helper: Get or create team
 function getOrCreateTeam(gangName)
@@ -27,26 +128,20 @@ end
 
 -- Helper: Hex to RGB
 function hexToRGB(hex)
-    outputDebugString("[TurfWar] hexToRGB called with: " .. tostring(hex), 3)
     hex = hex:gsub("#", "")
-    outputDebugString("[TurfWar] After gsub: " .. tostring(hex), 3)
     if #hex ~= 6 then return false end
     
     local r = tonumber(hex:sub(1,2), 16)
     local g = tonumber(hex:sub(3,4), 16)
     local b = tonumber(hex:sub(5,6), 16)
     
-    outputDebugString("[TurfWar] Converted to RGB: " .. tostring(r) .. ", " .. tostring(g) .. ", " .. tostring(b), 3)
     return r, g, b
 end
 
 -- Prompt 1: Join Gang
 function joinGang(gangName)
     local player = source
-    if not isElement(player) then 
-        outputDebugString("[TurfWar] Invalid player in joinGang", 2)
-        return 
-    end
+    if not isElement(player) then return end
     
     local team = getOrCreateTeam(gangName)
     setPlayerTeam(player, team)
@@ -57,7 +152,6 @@ addEventHandler("turfwar:joinGang", root, joinGang)
 
 -- Prompt 2: /groupturfcolor command
 function setGangColor(player, cmd, hex)
-    outputChatBox("Command called with: " .. tostring(hex), player, 255, 255, 0)
     local team = getPlayerTeam(player)
     if not team then
         outputChatBox("You must be in a team first!", player, 255, 0, 0)
@@ -69,7 +163,6 @@ function setGangColor(player, cmd, hex)
     end
     
     local r, g, b = hexToRGB(hex)
-    outputChatBox("Converted color: " .. tostring(r) .. ", " .. tostring(g) .. ", " .. tostring(b), player, 255, 255, 0)
     if not r then
         outputChatBox("Invalid hex color!", player, 255, 0, 0)
         return
@@ -90,19 +183,110 @@ function setGangColor(player, cmd, hex)
 end
 addCommandHandler("groupturfcolor", setGangColor)
 
--- Debug: Resource start
-outputDebugString("[TurfWar] Server script loaded!", 3)
+-- Command: /saveturf <name> - save current position as a new turf
+addCommandHandler("saveturf", function(player, cmd, name)
+    if not isElement(player) then return end
+    
+    if not name or name == "" then
+        outputChatBox("Usage: /saveturf <turf name>", player, 255, 0, 0)
+        return
+    end
+    
+    local x, y, z = getElementPosition(player)
+    local turfWidth = 150
+    local turfHeight = 150
+    -- Center turf on player position
+    x = x - turfWidth/2
+    y = y - turfHeight/2
+    
+    table.insert(turfs, {
+        name = name,
+        x = x,
+        y = y,
+        width = turfWidth,
+        height = turfHeight,
+        owner = nil,
+        progress = 0
+    })
+    
+    -- Initialize the new turf
+    local newTurf = turfs[#turfs]
+    newTurf.radarArea = createRadarArea(newTurf.x, newTurf.y, newTurf.width, newTurf.height, 127, 127, 127, 175)
+    newTurf.colShape = createColRectangle(newTurf.x, newTurf.y, newTurf.width, newTurf.height)
+    setElementData(newTurf.colShape, "turfData", newTurf)
+    
+    saveTurfs()
+    outputChatBox("Created new turf: " .. name .. "!", player, 0, 255, 0)
+end)
+
+-- Handle custom turf creation from client
+addEvent("turfwar:createCustomTurf", true)
+addEventHandler("turfwar:createCustomTurf", root, function(name, corners)
+    local player = source
+    if not isElement(player) then return end
+    if not name or name == "" or not corners or #corners < 3 then
+        outputChatBox("[TurfWar] Invalid custom turf!", player, 255, 0, 0)
+        return
+    end
+    
+    local newTurf = {
+        name = name,
+        corners = corners,
+        owner = nil,
+        progress = 0
+    }
+    
+    table.insert(turfs, newTurf)
+    
+    -- Calculate bounding box for col shape and radar area
+    local bx, by, bw, bh = getPolygonBounds(corners)
+    newTurf.x = bx
+    newTurf.y = by
+    newTurf.width = bw
+    newTurf.height = bh
+    
+    -- Create col shape (using bounding box for now)
+    newTurf.colShape = createColRectangle(bx, by, bw, bh)
+    setElementData(newTurf.colShape, "turfData", newTurf)
+    newTurf.colShape.isPolygon = true -- mark it as a polygon turf
+    
+    -- Create radar area (also bounding box for now)
+    newTurf.radarArea = createRadarArea(bx, by, bw, bh, 127, 127, 127, 175)
+    
+    saveTurfs()
+    outputChatBox("[TurfWar] Custom turf '" .. name .. "' created!", player, 0, 255, 0)
+end)
 
 -- Prompt 3: Turf Control Engine
 function initTurfs()
-    outputDebugString("[TurfWar] Initializing turfs...", 3)
+    loadTurfs()
     for i, turf in ipairs(turfs) do
-        -- Create radar area
-        turf.radarArea = createRadarArea(turf.x, turf.y, turf.width, turf.height, 127, 127, 127, 175)
-        -- Create colshape
-        turf.colShape = createColRectangle(turf.x, turf.y, turf.width, turf.height)
-        setElementData(turf.colShape, "turfData", turf)
-        outputDebugString("[TurfWar] Created turf: " .. turf.name .. " at " .. tostring(turf.x) .. "," .. tostring(turf.y), 3)
+        -- Create radar area (polygon turfs use bounding box)
+        if not turf.radarArea or not isElement(turf.radarArea) then
+            if turf.corners and #turf.corners >=3 then
+                local bx, by, bw, bh = getPolygonBounds(turf.corners)
+                turf.x = bx
+                turf.y = by
+                turf.width = bw
+                turf.height = bh
+                turf.radarArea = createRadarArea(bx, by, bw, bh, 127, 127, 127, 175)
+            elseif turf.x and turf.y and turf.width and turf.height then
+                turf.radarArea = createRadarArea(turf.x, turf.y, turf.width, turf.height, 127, 127, 127, 175)
+            end
+        end
+        
+        -- Create col shape
+        if not turf.colShape or not isElement(turf.colShape) then
+            if turf.corners and #turf.corners >=3 then
+                local bx, by, bw, bh = getPolygonBounds(turf.corners)
+                turf.colShape = createColRectangle(bx, by, bw, bh)
+                setElementData(turf.colShape, "turfData", turf)
+                turf.colShape.isPolygon = true
+            elseif turf.x and turf.y and turf.width and turf.height then
+                turf.colShape = createColRectangle(turf.x, turf.y, turf.width, turf.height)
+                setElementData(turf.colShape, "turfData", turf)
+            end
+        end
     end
 end
 addEventHandler("onResourceStart", resourceRoot, initTurfs)
@@ -111,21 +295,36 @@ addEventHandler("onResourceStart", resourceRoot, initTurfs)
 function sendTurfUpdates()
     local turfsData = {}
     for _, turf in ipairs(turfs) do
-        table.insert(turfsData, {
+        local tData = {
             name = turf.name,
             owner = turf.owner,
-            progress = turf.progress,
-            x = turf.x,
-            y = turf.y,
-            width = turf.width,
-            height = turf.height
-        })
+            progress = turf.progress
+        }
+        if turf.corners then
+            tData.corners = turf.corners
+        end
+        if turf.x and turf.y and turf.width and turf.height then
+            tData.x = turf.x
+            tData.y = turf.y
+            tData.width = turf.width
+            tData.height = turf.height
+        end
+        table.insert(turfsData, tData)
     end
     
     for _, player in ipairs(getElementsByType("player")) do
         local playerTurf = nil
+        local px, py = getElementPosition(player)
+        
         for _, turf in ipairs(turfs) do
-            if turf.colShape and isElement(turf.colShape) and isElementWithinColShape(player, turf.colShape) then
+            local inTurf = false
+            if turf.corners and #turf.corners >= 3 then
+                inTurf = isPointInPolygon(px, py, turf.corners)
+            elseif turf.colShape and isElement(turf.colShape) and isElementWithinColShape(player, turf.colShape) then
+                inTurf = true
+            end
+            
+            if inTurf then
                 playerTurf = {
                     name = turf.name,
                     owner = turf.owner,
@@ -145,73 +344,71 @@ setTimer(sendTurfUpdates, 500, 0)
 
 function processTurfProgress()
     for _, turf in ipairs(turfs) do
-        -- Make sure colShape exists
-        if turf.colShape and isElement(turf.colShape) then
-            -- Count players inside, grouped by team
-            local teamCounts = {}
-            local playersInside = getElementsWithinColShape(turf.colShape, "player")
-            
-            if playersInside then
-                for _, player in ipairs(playersInside) do
-                    local team = getPlayerTeam(player)
-                    if team then
-                        local teamName = getTeamName(team)
-                        teamCounts[teamName] = (teamCounts[teamName] or 0) + 1
-                    end
-                end
+        -- Count players inside, grouped by team
+        local teamCounts = {}
+        
+        for _, player in ipairs(getElementsByType("player")) do
+            local px, py = getElementPosition(player)
+            local inTurf = false
+            if turf.corners and #turf.corners >=3 then
+                inTurf = isPointInPolygon(px, py, turf.corners)
+            elseif turf.colShape and isElement(turf.colShape) then
+                inTurf = isElementWithinColShape(player, turf.colShape)
             end
             
-            -- Find dominant team
-            local dominantTeam = nil
-            local maxCount = 0
-            for teamName, count in pairs(teamCounts) do
-                if count > maxCount then
-                    maxCount = count
-                    dominantTeam = teamName
+            if inTurf then
+                local team = getPlayerTeam(player)
+                if team then
+                    local teamName = getTeamName(team)
+                    teamCounts[teamName] = (teamCounts[teamName] or 0) + 1
                 end
             end
-            
-            -- Update progress
-            if dominantTeam then
-                if turf.owner == nil then
-                    -- Unowned turf: increase progress by 1% per member
-                    turf.progress = math.min(100, turf.progress + maxCount)
-                    if turf.progress >= 51 then
-                        -- Capture!
-                        turf.owner = dominantTeam
-                        local r, g, b = unpack(gangColors[dominantTeam] or {255, 255, 255})
-                        if turf.radarArea then
-                            setRadarAreaColor(turf.radarArea, r, g, b, 175)
-                        end
-                        outputChatBox(dominantTeam .. " has captured " .. turf.name .. "!", root, 255, 255, 0)
+        end
+        
+        -- Find dominant team
+        local dominantTeam = nil
+        local maxCount = 0
+        for teamName, count in pairs(teamCounts) do
+            if count > maxCount then
+                maxCount = count
+                dominantTeam = teamName
+            end
+        end
+        
+        -- Update progress
+        if dominantTeam then
+            if turf.owner == nil then
+                turf.progress = math.min(100, turf.progress + maxCount)
+                if turf.progress >= 51 then
+                    turf.owner = dominantTeam
+                    local r, g, b = unpack(gangColors[dominantTeam] or {255, 255, 255})
+                    if turf.radarArea then
+                        setRadarAreaColor(turf.radarArea, r, g, b, 175)
                     end
-                elseif turf.owner == dominantTeam then
-                    -- Owner present: restore progress towards 100
-                    turf.progress = math.min(100, turf.progress + maxCount)
-                else
-                    -- Enemy present: decrease progress
-                    turf.progress = math.max(0, turf.progress - maxCount)
-                    if turf.progress < 51 then
-                        -- Capture!
-                        turf.owner = dominantTeam
-                        turf.progress = 51
-                        local r, g, b = unpack(gangColors[dominantTeam] or {255, 255, 255})
-                        if turf.radarArea then
-                            setRadarAreaColor(turf.radarArea, r, g, b, 175)
-                        end
-                        outputChatBox(dominantTeam .. " has captured " .. turf.name .. "!", root, 255, 255, 0)
-                    end
+                    outputChatBox(dominantTeam .. " has captured " .. turf.name .. "!", root, 255, 255, 0)
+                    saveTurfs()
                 end
+            elseif turf.owner == dominantTeam then
+                turf.progress = math.min(100, turf.progress + maxCount)
             else
-                -- No players present: decay towards 0 if unowned, or slowly back to 100 if owned
-                if turf.owner then
-                    turf.progress = math.min(100, turf.progress + 1)
-                else
-                    turf.progress = math.max(0, turf.progress - 1)
+                turf.progress = math.max(0, turf.progress - maxCount)
+                if turf.progress < 51 then
+                    turf.owner = dominantTeam
+                    turf.progress = 51
+                    local r, g, b = unpack(gangColors[dominantTeam] or {255, 255, 255})
+                    if turf.radarArea then
+                        setRadarAreaColor(turf.radarArea, r, g, b, 175)
+                    end
+                    outputChatBox(dominantTeam .. " has captured " .. turf.name .. "!", root, 255, 255, 0)
+                    saveTurfs()
                 end
             end
         else
-            outputDebugString("[TurfWar] Missing colShape for turf: " .. turf.name, 2)
+            if turf.owner then
+                turf.progress = math.min(100, turf.progress + 1)
+            else
+                turf.progress = math.max(0, turf.progress - 1)
+            end
         end
     end
 end
@@ -237,3 +434,5 @@ function processPayouts()
     end
 end
 setTimer(processPayouts, 60000, 0)
+
+outputDebugString("[TurfWar] Server script loaded!", 3)
