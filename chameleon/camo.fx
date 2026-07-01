@@ -45,7 +45,7 @@ float4 PixelShaderFunction(PSInput PS) : COLOR0
 {
     // Apply a very subtle distortion based on the ped's normal 
     // to give that "subtle 3D outline" effect.
-    float2 distortion = PS.Normal.xy * 0.015;
+    float2 distortion = PS.Normal.xy * 0.025;
     float2 uv = PS.ScreenTexCoord + distortion;
     
     // Clamp to avoid sampling outside the screen bounds
