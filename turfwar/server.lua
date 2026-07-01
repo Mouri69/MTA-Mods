@@ -195,9 +195,7 @@ function joinGang(gangName, playerOverride)
     end
 end
 addEvent("turfwar:joinGang", true)
-addEventHandler("turfwar:joinGang", root, function(gangName)
-    joinGang(gangName, source)
-end)
+addEventHandler("turfwar:joinGang", root, joinGang)
 
 -- Prompt 2: /groupturfcolor command
 function setGangColor(player, cmd, hex)
@@ -240,7 +238,7 @@ addCommandHandler("testjoin", function(player, cmd, gangName)
         return
     end
     outputDebugString("[TurfWar] /testjoin called by " .. getPlayerName(player) .. " for " .. gangName, 3)
-    joinGang(gangName) -- Directly call the function!
+    joinGang(gangName, player) -- Directly call the function with player!
 end)
 
 -- Command: /saveturf <name> - save current position as a new turf

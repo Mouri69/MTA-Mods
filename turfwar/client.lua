@@ -88,7 +88,7 @@ function openGroupMenu()
         if button == "left" and state == "up" then
             outputChatBox("[TurfWar] Attempting to join Mouri...", 0, 255, 0)
             outputDebugString("[TurfWar] (Client) Mouri button clicked! Triggering turfwar:joinGang with 'Mouri'", 3)
-            triggerServerEvent("turfwar:joinGang", resourceRoot, "Mouri")
+            triggerServerEvent("turfwar:joinGang", root, "Mouri")
             closeGroupMenu()
         end
     end, false)
@@ -97,7 +97,7 @@ function openGroupMenu()
         if button == "left" and state == "up" then
             outputChatBox("[TurfWar] Attempting to join Evil...", 0, 255, 0)
             outputDebugString("[TurfWar] (Client) Evil button clicked! Triggering turfwar:joinGang with 'Evil'", 3)
-            triggerServerEvent("turfwar:joinGang", resourceRoot, "Evil")
+            triggerServerEvent("turfwar:joinGang", root, "Evil")
             closeGroupMenu()
         end
     end, false)
